@@ -1,9 +1,12 @@
 from django.shortcuts import render
-from .serializer import Useraerilaizer
-from rest_framework.decorators import api_view
+from .serializer import Useraerilaizer, Registerserializer
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from .models import User
 from rest_framework import status
+from django.contrib.auth import authenticate
+from rest_framework.permissions import AllowAny,  IsAuthenticated
+from rest_framework_simplejwt.tokens import RefreshToken
 
 # Create your views here.
 @api_view(['GET'])
@@ -44,3 +47,51 @@ def user_fun(request, pk):
     elif request.method == 'DELETE':
         users.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def register(request):
+
+    serializer = Registerserializer(data=request.data)
+
+    if serializer.is_valid():
+        serializer.save()
+        return Response({"message" : "Registeration successfull", "user" : serializer.data}, status=status.HTTP_201_CREATED)
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+def login(request):
+
+    username = request.data.get('username')
+    password = request.data.get('password')
+
+    if not username or not password:
+        return Response({
+            "error" : "username and password are required"
+        },
+        status=status.HTTP_400_BAD_REQUEST
+        )
+
+    user = authenticate(
+        request, 
+        username=username,
+        password=password
+    )
+
+    if user is not None:
+        refresh = RefreshToken.for_user(user)
+
+        return Response({
+            "message": "login successfull",
+            "access" : str(refresh.access_token),
+            "refresh" : str(refresh),
+            "username" : user.username
+        }, 
+        status=status.HTTP_200_OK)
+    
+    return Response(
+        {"error": "Invalid username or password"},
+        status=status.HTTP_401_UNAUTHORIZED
+    )
+
+  
