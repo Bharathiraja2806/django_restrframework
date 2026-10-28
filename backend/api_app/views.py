@@ -1,12 +1,14 @@
 from django.shortcuts import render
-from .serializer import Useraerilaizer, Registerserializer
+from .serializer import Useraerilaizer, Registerserializer, UserserilizerProfile
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from .models import User
 from rest_framework import status
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate, get_user_model
 from rest_framework.permissions import AllowAny,  IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
+
+auth_user = get_user_model()
 
 # Create your views here.
 @api_view(['GET'])
@@ -26,6 +28,7 @@ def create(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
 def user_fun(request, pk):
 
     try:
@@ -55,11 +58,12 @@ def register(request):
     serializer = Registerserializer(data=request.data)
 
     if serializer.is_valid():
-        serializer.save()
+        user = serializer.save()
         return Response({"message" : "Registeration successfull", "user" : serializer.data}, status=status.HTTP_201_CREATED)
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+@api_view(["POST"])
 def login(request):
 
     username = request.data.get('username')
@@ -94,4 +98,12 @@ def login(request):
         status=status.HTTP_401_UNAUTHORIZED
     )
 
-  
+@api_view(["GET"])
+def user_profile(request):
+
+    user_data = auth_user.objects.all().order_by('id')
+
+    serializer = UserserilizerProfile(user_data, many=True)
+
+    return Response(serializer.data, status=status.HTTP_200_OK)
+    
